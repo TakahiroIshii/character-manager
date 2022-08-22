@@ -5,7 +5,7 @@ import {
   APIGatewayProxyResult,
 } from "aws-lambda";
 import { keyMap, Keys, tableMap } from "../models/tableDecorator";
-import { Inventory, Prefix } from "../models/inventory";
+import { Character, Inventory, Prefix } from "../models/inventory";
 import { DocumentClient } from "aws-sdk/clients/dynamodb";
 
 const db = new AWS.DynamoDB.DocumentClient();
@@ -20,111 +20,29 @@ export const handler: APIGatewayProxyHandler = async ({
   pathParameters,
 }: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const playerId = pathParameters!["playerId"];
+  const characterId = pathParameters!["characterId"];
+  const characterDataId = pathParameters!["characterDataId"];
+  const weaponId = pathParameters!["weaponId"];
 
   switch (httpMethod) {
     case "GET": {
       if (path.includes("all")) {
-        const queryParam: DocumentClient.QueryInput = {
-          TableName: tableName,
-          KeyConditionExpression:
-            "#player_id = :player_id and begins_with(#sk, :character_prefix)",
-          ExpressionAttributeNames: {
-            "#player_id": pk,
-            "#sk": sk,
-          },
-          ExpressionAttributeValues: {
-            ":player_id": playerId,
-            ":character_prefix": Prefix.character,
-          },
-        };
-        const result = await db.query(queryParam).promise();
-        return {
-          statusCode: 200,
-          body: JSON.stringify(result.Items!),
-        };
+        return getAll(playerId!);
       }
-      const characterId = pathParameters!["characterId"];
-      const getParam: DocumentClient.GetItemInput = {
-        TableName: tableName,
-        Key: {
-          [pk]: playerId,
-          [sk]: Prefix.character + characterId,
-        },
-      };
-      const result = await db.get(getParam).promise();
-      return {
-        statusCode: 200,
-        body: result.Item!["character_name"],
-      };
+
+      return get(playerId!, characterId!);
     }
     case "POST": {
       if (path.includes("new")) {
-        const characterDataId = pathParameters!["characterDataId"];
-        const putParams: DocumentClient.PutItemInput = {
-          TableName: tableName,
-          Item: {
-            [pk]: playerId,
-            [sk]: Prefix.character + characterDataId,
-            character_data_id: characterDataId,
-            character_name: "test_character",
-            equipped: "none",
-          },
-        };
-        await db.put(putParams).promise();
-        return {
-          statusCode: 200,
-          body: "Done!",
-        };
+        return putNew(playerId!, characterDataId!);
       }
 
-      const characterId = pathParameters!["characterId"];
-      const weaponId = pathParameters!["weaponId"];
-      const characterUpdateParams: DocumentClient.TransactWriteItem = {
-        Update: {
-          TableName: tableName,
-          Key: {
-            [pk]: playerId,
-            [sk]: Prefix.character + characterId,
-          },
-          ConditionExpression: "#equipped = :current",
-          UpdateExpression: "SET #equipped = :weaponId",
-          ExpressionAttributeNames: {
-            "#equipped": "equipped",
-          },
-          ExpressionAttributeValues: {
-            ":weaponId": path.includes("equip") ? weaponId : "none",
-            ":current": path.includes("equip") ? "none" : weaponId,
-          },
-        },
-      };
-      const weaponUpdateParams: DocumentClient.TransactWriteItem = {
-        Update: {
-          TableName: tableName,
-          Key: {
-            [pk]: playerId,
-            [sk]: Prefix.weapon + weaponId,
-          },
-          ConditionExpression: "#equippedOn = :current",
-          UpdateExpression: "SET #equippedOn = :characterId",
-          ExpressionAttributeNames: {
-            "#equippedOn": "equippedOn",
-          },
-          ExpressionAttributeValues: {
-            ":characterId": path.includes("equip") ? characterId : "none",
-            ":current": path.includes("equip") ? "none" : characterId,
-          },
-        },
-      };
-
-      await db
-        .transactWrite({
-          TransactItems: [characterUpdateParams, weaponUpdateParams],
-        })
-        .promise();
-      return {
-        statusCode: 200,
-        body: "Done!",
-      };
+      return equipOrRemove(
+        playerId!,
+        characterId!,
+        weaponId!,
+        path.includes("equip")
+      );
     }
     default: {
       return {
@@ -136,3 +54,117 @@ export const handler: APIGatewayProxyHandler = async ({
     }
   }
 };
+
+async function getAll(playerId: Character["player_id"]) {
+  const queryParam: DocumentClient.QueryInput = {
+    TableName: tableName,
+    KeyConditionExpression:
+      "#player_id = :player_id and begins_with(#sk, :character_prefix)",
+    ExpressionAttributeNames: {
+      "#player_id": pk,
+      "#sk": sk,
+    },
+    ExpressionAttributeValues: {
+      ":player_id": playerId,
+      ":character_prefix": Prefix.character,
+    },
+  };
+  const result = await db.query(queryParam).promise();
+  return {
+    statusCode: 200,
+    body: JSON.stringify(result.Items!),
+  };
+}
+
+async function get(
+  playerId: Character["player_id"],
+  characterId: Character["sk"]
+) {
+  const getParam: DocumentClient.GetItemInput = {
+    TableName: tableName,
+    Key: {
+      [pk]: playerId,
+      [sk]: Prefix.character + characterId,
+    },
+  };
+  const result = await db.get(getParam).promise();
+  return {
+    statusCode: 200,
+    body: result.Item!["character_name"],
+  };
+}
+
+async function putNew(
+  playerId: Character["player_id"],
+  characterDataId: Character["character_data_id"]
+) {
+  const putParams: DocumentClient.PutItemInput = {
+    TableName: tableName,
+    Item: {
+      [pk]: playerId,
+      [sk]: Prefix.character + characterDataId,
+      character_data_id: characterDataId,
+      character_name: "test_character",
+      equipped: "none",
+    },
+  };
+  await db.put(putParams).promise();
+  return {
+    statusCode: 200,
+    body: "Done!",
+  };
+}
+
+async function equipOrRemove(
+  playerId: Character["player_id"],
+  characterId: Character["sk"],
+  weaponId: Character["equipped"],
+  equip: boolean
+) {
+  const characterUpdateParams: DocumentClient.TransactWriteItem = {
+    Update: {
+      TableName: tableName,
+      Key: {
+        [pk]: playerId,
+        [sk]: Prefix.character + characterId,
+      },
+      ConditionExpression: "#equipped = :current",
+      UpdateExpression: "SET #equipped = :weaponId",
+      ExpressionAttributeNames: {
+        "#equipped": "equipped",
+      },
+      ExpressionAttributeValues: {
+        ":weaponId": equip ? weaponId : "none",
+        ":current": equip ? "none" : weaponId,
+      },
+    },
+  };
+  const weaponUpdateParams: DocumentClient.TransactWriteItem = {
+    Update: {
+      TableName: tableName,
+      Key: {
+        [pk]: playerId,
+        [sk]: Prefix.weapon + weaponId,
+      },
+      ConditionExpression: "#equippedOn = :current",
+      UpdateExpression: "SET #equippedOn = :characterId",
+      ExpressionAttributeNames: {
+        "#equippedOn": "equippedOn",
+      },
+      ExpressionAttributeValues: {
+        ":characterId": equip ? characterId : "none",
+        ":current": equip ? "none" : characterId,
+      },
+    },
+  };
+
+  await db
+    .transactWrite({
+      TransactItems: [characterUpdateParams, weaponUpdateParams],
+    })
+    .promise();
+  return {
+    statusCode: 200,
+    body: "Done!",
+  };
+}
