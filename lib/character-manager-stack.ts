@@ -62,23 +62,33 @@ export class CharacterManagerStack extends Stack {
     });
 
     const characters = charactersAPI.root.addResource("characters");
+
+    // GET https://..../characters/playerId
     characters.addResource("all").addResource("{playerId}").addMethod("GET");
+
+    // GET https://..../characters/character/playerId/characterId
     characters
       .addResource("character")
       .addResource("{playerId}")
       .addResource("{characterId}")
       .addMethod("GET");
+
+    // POST https://..../characters/new/playerId/characterId
     characters
       .addResource("new")
       .addResource("{playerId}")
       .addResource("{characterDataId}")
       .addMethod("POST");
+
+    // POST https://..../characters/equip/playerId/characterId/weaponId
     characters
       .addResource("equip")
       .addResource("{playerId}")
       .addResource("{characterId}")
       .addResource("{weaponId}")
       .addMethod("POST");
+
+    // POST https://..../characters/remove/playerId/characterId/weaponId
     characters
       .addResource("remove")
       .addResource("{playerId}")
@@ -92,12 +102,18 @@ export class CharacterManagerStack extends Stack {
     });
 
     const weapons = weaponsAPI.root.addResource("weapons");
+
+    // GET https://..../weapons/playerId
     weapons.addResource("all").addResource("{playerId}").addMethod("GET");
+
+    // GET https://..../weapons/playerId/weaponId
     weapons
       .addResource("weapon")
       .addResource("{playerId}")
       .addResource("{weaponId}")
       .addMethod("GET");
+
+    // POST https://..../weapons/new/playerId/weaponId
     weapons
       .addResource("new")
       .addResource("{playerId}")
