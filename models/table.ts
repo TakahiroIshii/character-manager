@@ -2,11 +2,18 @@ import { Table, pk, sk } from "./tableDecorator";
 
 @Table("tableName")
 export class ATable {
-  @pk
-  pk: string;
-  @sk
-  sk: string;
+  // @pk
+  // pk: string;
+  // @sk
+  // sk: string;
 }
+
+// 各playerはユニークなplayerID (string) を持っている * player テーブルはここでは無視する
+// 各characterはユニークなcharacterID (string) を持っている
+// 各weaponはユニークなweaponID (string) を持っている
+
+// characterは他にも name, characterDataID (マスターデータのID) などを持っている
+// weaponは他にも name, weaponDataId (マスターデータのID) などを持っている
 
 // characters
 
