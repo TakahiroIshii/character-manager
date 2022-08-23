@@ -27,12 +27,6 @@ weaponは他にも name, weaponDataId (マスターデータのID) などを持�
 // TODO: POST https://..../characters/new/playerId/characterId
 // あるplayerにあるcharacterを付与
 
-// TODO: POST https://..../characters/equip/playerId/characterId/weaponId
-// あるplayerのあるcharacterにあるweaponを装着
-
-// TODO: POST https://..../characters/remove/playerId/characterId/weaponId
-// あるplayerのあるcharacterについているはずのweaponを脱着
-
 // weapons ----------------------------------------------------------------------
 
 // TODO: GET https://..../weapons/playerId
@@ -43,3 +37,13 @@ weaponは他にも name, weaponDataId (マスターデータのID) などを持�
 
 // TODO: POST https://..../weapons/new/playerId/weaponId
 // あるplayerにあるweaponを付与
+
+// inventory -------------------------------------------------------------------
+
+// TODO: GET https://..../inventory/playerId
+
+// TODO: POST https://..../inventory/equip/playerId/characterId/weaponId
+// あるplayerのあるcharacterにあるweaponを装着
+
+// TODO: POST https://..../inventory/remove/playerId/characterId/weaponId
+// あるplayerのあるcharacterについているはずのweaponを脱着

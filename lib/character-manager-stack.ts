@@ -2,13 +2,7 @@ import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { Inventory } from "../models/inventory";
-import {
-  gsiIndexMap,
-  gsiKeyMap,
-  keyMap,
-  Keys,
-  tableMap,
-} from "../models/tableDecorator";
+import { keyMap, Keys, tableMap } from "../models/tableDecorator";
 import {
   NodejsFunction,
   NodejsFunctionProps,
@@ -39,6 +33,11 @@ export class CharacterManagerStack extends Stack {
       ...functionProp,
     });
 
+    const inventoryHandler = new NodejsFunction(this, "inventoryHandler", {
+      entry: "lambda/inventoryHandler.ts",
+      ...functionProp,
+    });
+
     const inventoryTable = new Table(this, "Inventory", {
       tableName: tableName,
       partitionKey: {
@@ -55,6 +54,7 @@ export class CharacterManagerStack extends Stack {
 
     inventoryTable.grantReadWriteData(charactersHandler);
     inventoryTable.grantReadWriteData(weaponsHandler);
+    inventoryTable.grantReadWriteData(inventoryHandler);
 
     const charactersAPI = new LambdaRestApi(this, "charactersAPI", {
       handler: charactersHandler,
@@ -75,25 +75,8 @@ export class CharacterManagerStack extends Stack {
 
     // POST https://..../characters/new/playerId/characterId
     characters
-      .addResource("new")
       .addResource("{playerId}")
       .addResource("{characterDataId}")
-      .addMethod("POST");
-
-    // POST https://..../characters/equip/playerId/characterId/weaponId
-    characters
-      .addResource("equip")
-      .addResource("{playerId}")
-      .addResource("{characterId}")
-      .addResource("{weaponId}")
-      .addMethod("POST");
-
-    // POST https://..../characters/remove/playerId/characterId/weaponId
-    characters
-      .addResource("remove")
-      .addResource("{playerId}")
-      .addResource("{characterId}")
-      .addResource("{weaponId}")
       .addMethod("POST");
 
     const weaponsAPI = new LambdaRestApi(this, "weaponsAPI", {
@@ -115,9 +98,33 @@ export class CharacterManagerStack extends Stack {
 
     // POST https://..../weapons/new/playerId/weaponId
     weapons
-      .addResource("new")
       .addResource("{playerId}")
       .addResource("{weaponDataId}")
+      .addMethod("POST");
+
+    const inventoryAPI = new LambdaRestApi(this, "inventoryAPI", {
+      handler: inventoryHandler,
+      proxy: false,
+    });
+    const inventory = inventoryAPI.root.addResource("inventory");
+
+    // GET https://..../inventory/playerId
+    inventory.addResource("{playerId}").addMethod("GET");
+
+    // POST https://..../inventory/equip/playerId/characterId/weaponId
+    inventory
+      .addResource("equip")
+      .addResource("{playerId}")
+      .addResource("{characterId}")
+      .addResource("{weaponId}")
+      .addMethod("POST");
+
+    // POST https://..../inventory/remove/playerId/characterId/weaponId
+    inventory
+      .addResource("remove")
+      .addResource("{playerId}")
+      .addResource("{characterId}")
+      .addResource("{weaponId}")
       .addMethod("POST");
   }
 }

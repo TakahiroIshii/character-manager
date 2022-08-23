@@ -5,7 +5,7 @@ import {
   APIGatewayProxyResult,
 } from "aws-lambda";
 import { keyMap, Keys, tableMap } from "../models/tableDecorator";
-import { Inventory, Prefix } from "../models/inventory";
+import { Inventory, Prefix, Weapon } from "../models/inventory";
 import { DocumentClient } from "aws-sdk/clients/dynamodb";
 
 const db = new AWS.DynamoDB.DocumentClient();
@@ -20,60 +20,18 @@ export const handler: APIGatewayProxyHandler = async ({
   pathParameters,
 }: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   const playerId = pathParameters!["playerId"];
+  const weaponId = pathParameters!["weaponId"];
+  const weaponDataId = pathParameters!["weaponDataId"];
 
   switch (httpMethod) {
     case "GET": {
       if (path.includes("all")) {
-        const queryParam: DocumentClient.QueryInput = {
-          TableName: tableName,
-          KeyConditionExpression:
-            "#player_id = :player_id and begins_with(#sk, :weapon_prefix)",
-          ExpressionAttributeNames: {
-            "#player_id": pk,
-            "#sk": sk,
-          },
-          ExpressionAttributeValues: {
-            ":player_id": playerId,
-            ":weapon_prefix": Prefix.weapon,
-          },
-        };
-        const result = await db.query(queryParam).promise();
-        return {
-          statusCode: 200,
-          body: JSON.stringify(result.Items!),
-        };
+        return getAll(playerId!);
       }
-      const weaponId = pathParameters!["weaponId"];
-      const getParam: DocumentClient.GetItemInput = {
-        TableName: tableName,
-        Key: {
-          [pk]: playerId,
-          [sk]: Prefix.weapon + weaponId,
-        },
-      };
-      const result = await db.get(getParam).promise();
-      return {
-        statusCode: 200,
-        body: result.Item!["weapon_name"],
-      };
+      return get(playerId!, weaponId!);
     }
     case "POST": {
-      const weaponDataId = pathParameters!["weaponDataId"];
-      const putParams: DocumentClient.PutItemInput = {
-        TableName: tableName,
-        Item: {
-          [pk]: playerId,
-          [sk]: Prefix.weapon + weaponDataId,
-          weapon_data_id: weaponDataId,
-          weapon_name: "test_weapon",
-          equippedOn: "none",
-        },
-      };
-      await db.put(putParams).promise();
-      return {
-        statusCode: 200,
-        body: "Done!",
-      };
+      return put(playerId!, weaponDataId!);
     }
     default: {
       return {
@@ -85,3 +43,60 @@ export const handler: APIGatewayProxyHandler = async ({
     }
   }
 };
+
+async function getAll(playerId: Weapon["player_id"]) {
+  const queryParam: DocumentClient.QueryInput = {
+    TableName: tableName,
+    KeyConditionExpression:
+      "#player_id = :player_id and begins_with(#sk, :weapon_prefix)",
+    ExpressionAttributeNames: {
+      "#player_id": pk,
+      "#sk": sk,
+    },
+    ExpressionAttributeValues: {
+      ":player_id": playerId,
+      ":weapon_prefix": Prefix.weapon,
+    },
+  };
+  const result = await db.query(queryParam).promise();
+  return {
+    statusCode: 200,
+    body: JSON.stringify(result.Items!),
+  };
+}
+
+async function get(playerId: Weapon["player_id"], weaponId: Weapon["sk"]) {
+  const getParam: DocumentClient.GetItemInput = {
+    TableName: tableName,
+    Key: {
+      [pk]: playerId,
+      [sk]: Prefix.weapon + weaponId,
+    },
+  };
+  const result = await db.get(getParam).promise();
+  return {
+    statusCode: 200,
+    body: result.Item!["weapon_name"],
+  };
+}
+
+async function put(
+  playerId: Weapon["player_id"],
+  weaponDataId: Weapon["weapon_data_id"]
+) {
+  const putParams: DocumentClient.PutItemInput = {
+    TableName: tableName,
+    Item: {
+      [pk]: playerId,
+      [sk]: Prefix.weapon + weaponDataId,
+      weapon_data_id: weaponDataId,
+      weapon_name: "test_weapon",
+      equippedOn: "none",
+    },
+  };
+  await db.put(putParams).promise();
+  return {
+    statusCode: 200,
+    body: "Done!",
+  };
+}

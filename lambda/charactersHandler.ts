@@ -22,27 +22,16 @@ export const handler: APIGatewayProxyHandler = async ({
   const playerId = pathParameters!["playerId"];
   const characterId = pathParameters!["characterId"];
   const characterDataId = pathParameters!["characterDataId"];
-  const weaponId = pathParameters!["weaponId"];
 
   switch (httpMethod) {
     case "GET": {
       if (path.includes("all")) {
         return getAll(playerId!);
       }
-
       return get(playerId!, characterId!);
     }
     case "POST": {
-      if (path.includes("new")) {
-        return putNew(playerId!, characterDataId!);
-      }
-
-      return equipOrRemove(
-        playerId!,
-        characterId!,
-        weaponId!,
-        path.includes("equip")
-      );
+      return put(playerId!, characterDataId!);
     }
     default: {
       return {
@@ -94,7 +83,7 @@ async function get(
   };
 }
 
-async function putNew(
+async function put(
   playerId: Character["player_id"],
   characterDataId: Character["character_data_id"]
 ) {
@@ -109,60 +98,6 @@ async function putNew(
     },
   };
   await db.put(putParams).promise();
-  return {
-    statusCode: 200,
-    body: "Done!",
-  };
-}
-
-async function equipOrRemove(
-  playerId: Character["player_id"],
-  characterId: Character["sk"],
-  weaponId: Character["equipped"],
-  equip: boolean
-) {
-  const characterUpdateParams: DocumentClient.TransactWriteItem = {
-    Update: {
-      TableName: tableName,
-      Key: {
-        [pk]: playerId,
-        [sk]: Prefix.character + characterId,
-      },
-      ConditionExpression: "#equipped = :current",
-      UpdateExpression: "SET #equipped = :weaponId",
-      ExpressionAttributeNames: {
-        "#equipped": "equipped",
-      },
-      ExpressionAttributeValues: {
-        ":weaponId": equip ? weaponId : "none",
-        ":current": equip ? "none" : weaponId,
-      },
-    },
-  };
-  const weaponUpdateParams: DocumentClient.TransactWriteItem = {
-    Update: {
-      TableName: tableName,
-      Key: {
-        [pk]: playerId,
-        [sk]: Prefix.weapon + weaponId,
-      },
-      ConditionExpression: "#equippedOn = :current",
-      UpdateExpression: "SET #equippedOn = :characterId",
-      ExpressionAttributeNames: {
-        "#equippedOn": "equippedOn",
-      },
-      ExpressionAttributeValues: {
-        ":characterId": equip ? characterId : "none",
-        ":current": equip ? "none" : characterId,
-      },
-    },
-  };
-
-  await db
-    .transactWrite({
-      TransactItems: [characterUpdateParams, weaponUpdateParams],
-    })
-    .promise();
   return {
     statusCode: 200,
     body: "Done!",
