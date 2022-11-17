@@ -75,6 +75,7 @@ export class CharacterManagerStack extends Stack {
 
     // POST https://..../characters/new/playerId/characterId
     characters
+      .addResource("new")
       .addResource("{playerId}")
       .addResource("{characterDataId}")
       .addMethod("POST");
@@ -98,6 +99,7 @@ export class CharacterManagerStack extends Stack {
 
     // POST https://..../weapons/new/playerId/weaponId
     weapons
+      .addResource("new")
       .addResource("{playerId}")
       .addResource("{weaponDataId}")
       .addMethod("POST");
